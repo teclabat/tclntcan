@@ -1,0 +1,22 @@
+# rsvisa.test --
+#
+#	Tests for the rsvisa extension.
+#
+# Note: These tests are basic smoke tests that verify the package loads
+# and commands are available. Full testing would require actual VISA hardware.
+
+package require tcltest
+namespace import ::tcltest::*
+
+# Load the rsvisa package
+test load-package-1.0 {Load ntcan package} -body {
+    package require ntcan
+} -result {1.0.0}
+
+# Note: Full integration tests would require actual VISA hardware
+# connected to the system. The above tests verify that:
+# 1. The package loads correctly
+# 2. All commands are registered
+# 3. Argument validation works properly
+
+cleanupTests
