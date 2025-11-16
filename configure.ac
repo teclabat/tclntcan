@@ -123,21 +123,6 @@ TEA_ENABLE_SYMBOLS
 TEA_MAKE_LIB
 
 #-----------------------------------------------------------------------
-# Link to the Tcl stubs library.
-# The code uses Tcl_InitStubs, so we must link against libtclstub86.a
-# instead of the full Tcl library.
-#-----------------------------------------------------------------------
-
-if test "${TEA_PLATFORM}" = "windows" ; then
-    # On Windows, link to Tcl stubs library since we use Tcl_InitStubs
-    TCL_LIB_FILE="libtclstub86.a"
-    TCL_LIB_PATH="${TCL_BIN_DIR}/${TCL_LIB_FILE}"
-    SHLIB_LD_LIBS="\${LIBS} \"`\${CYGPATH} \${TCL_LIB_PATH}`\" -static-libgcc -static-libstdc++"
-    # Remove -static flag from LDFLAGS to allow dynamic linking to Tcl
-    LDFLAGS=`echo "$LDFLAGS" | sed 's/ -static$//'`
-fi
-
-#-----------------------------------------------------------------------
 # Find tclsh so that we can run pkg_mkIndex to create the pkgIndex.tcl
 # file during the install process. Don't run the TCLSH_PROG through
 # ${CYGPATH} because it's being used directly by make.
