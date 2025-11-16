@@ -1,6 +1,6 @@
 # all.tcl --
 #
-#	This file runs all of the tests in the rsvisa test suite.
+#	This file runs all of the tests in the ntcan test suite.
 #
 # Usage: tclsh all.tcl [-verbose [level]]
 #
