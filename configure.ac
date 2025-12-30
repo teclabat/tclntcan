@@ -4,23 +4,26 @@ dnl	generate the file "configure", which is run during Tcl installation
 dnl	to configure the system for the local environment.
 
 #-----------------------------------------------------------------------
-# __CHANGE__
-# Set your package name and version numbers here.
-#
-# This initializes the environment with PACKAGE_NAME and PACKAGE_VERSION
-# set as provided.  These will also be added as -D defs in your Makefile
-# so you can encode the package version directly into the source files.
+# Package information
 #-----------------------------------------------------------------------
 
-AC_INIT([performance], [0.1])
+AC_INIT([ntcan],[1.3.0])
 
-#--------------------------------------------------------------------
-# Call TEA_INIT as the first TEA_ macro to set up initial vars.
-# This will define a ${TEA_PLATFORM} variable == "unix" or "windows"
-# as well as PKG_LIB_FILE and PKG_STUB_LIB_FILE.
-#--------------------------------------------------------------------
+#-----------------------------------------------------------------------
+# TEA initialization
+#-----------------------------------------------------------------------
 
 TEA_INIT()
+
+#-----------------------------------------------------------------------
+# C++ support (C++11)
+#-----------------------------------------------------------------------
+
+TEA_INIT_CXX([11])
+
+#-----------------------------------------------------------------------
+# Set auxiliary directory
+#-----------------------------------------------------------------------
 
 AC_CONFIG_AUX_DIR(tclconfig)
 
@@ -29,10 +32,17 @@ AC_CONFIG_HEADERS([config.h])
 
 #--------------------------------------------------------------------
 # Load the tclConfig.sh file
-#--------------------------------------------------------------------
+#-----------------------------------------------------------------------
 
 TEA_PATH_TCLCONFIG
 TEA_LOAD_TCLCONFIG
+
+#-----------------------------------------------------------------------
+# Load the tkConfig.sh file if necessary (commented out for now)
+#-----------------------------------------------------------------------
+
+#TEA_PATH_TKCONFIG
+#TEA_LOAD_TKCONFIG
 
 #-----------------------------------------------------------------------
 # Handle the --prefix=... option by defaulting to what Tcl gave.
@@ -51,129 +61,85 @@ TEA_PREFIX
 TEA_SETUP_COMPILER
 
 #-----------------------------------------------------------------------
-# __CHANGE__
-# Specify the C source files to compile in TEA_ADD_SOURCES,
-# public headers that need to be installed in TEA_ADD_HEADERS,
-# stub library C source files to compile in TEA_ADD_STUB_SOURCES,
-# and runtime Tcl library files in TEA_ADD_TCL_SOURCES.
-# This defines PKG(_STUB)_SOURCES, PKG(_STUB)_OBJECTS, PKG_HEADERS
-# and PKG_TCL_SOURCES.
+# Specify the C/C++ source files and any other subsidiary files
+# that are involved in the build.
 #-----------------------------------------------------------------------
 
-TEA_ADD_SOURCES([generic/performance.c])
+TEA_ADD_SOURCES([generic/ntcan.cpp])
 TEA_ADD_HEADERS([])
 TEA_ADD_INCLUDES([])
-TEA_ADD_LIBS([])
+TEA_ADD_LIBS([-lntcan])
 TEA_ADD_CFLAGS([])
 TEA_ADD_STUB_SOURCES([])
 TEA_ADD_TCL_SOURCES([])
 
-#--------------------------------------------------------------------
-# __CHANGE__
-# A few miscellaneous platform-specific items:
-#
-# Define a special symbol for Windows (BUILD_sample in this case) so
-# that we create the export library with the dll.
-#
-# Windows creates a few extra files that need to be cleaned up.
-# You can add more files to clean if your extension creates any extra
-# files.
-#
-# TEA_ADD_* any platform specific compiler/build info here.
-#--------------------------------------------------------------------
-
-if test "${TEA_PLATFORM}" = "windows" ; then
-    # Ensure no empty if clauses
-    :
-else
-    # Ensure no empty else clauses
-    :
-fi
-
-#--------------------------------------------------------------------
-# __CHANGE__
-# Choose which headers you need.  Extension authors should try very
-# hard to only rely on the Tcl public header files.  Internal headers
+#-----------------------------------------------------------------------
+# Choose which headers you need. Extension authors should try very
+# hard to only rely on the Tcl public header files. Internal headers
 # contain private data structures and are subject to change without
 # notice.
 # This MUST be called after TEA_LOAD_TCLCONFIG / TEA_LOAD_TKCONFIG
-#--------------------------------------------------------------------
+#-----------------------------------------------------------------------
 
 TEA_PUBLIC_TCL_HEADERS
 #TEA_PRIVATE_TCL_HEADERS
+#TEA_PUBLIC_TK_HEADERS
+#TEA_PRIVATE_TK_HEADERS
+#TEA_PATH_X
 
-#--------------------------------------------------------------------
+#-----------------------------------------------------------------------
 # Check whether --enable-threads or --disable-threads was given.
-# This auto-enables if Tcl was compiled threaded.
-#--------------------------------------------------------------------
+#-----------------------------------------------------------------------
 
 TEA_ENABLE_THREADS
 
-#--------------------------------------------------------------------
+#-----------------------------------------------------------------------
 # The statement below defines a collection of symbols related to
 # building as a shared library instead of a static library.
-#--------------------------------------------------------------------
+#-----------------------------------------------------------------------
 
 TEA_ENABLE_SHARED
 
-#--------------------------------------------------------------------
+#-----------------------------------------------------------------------
 # This macro figures out what flags to use with the compiler/linker
-# when building shared/static debug/optimized objects.  This information
+# when building shared/static debug/optimized objects. This information
 # can be taken from the tclConfig.sh file, but this figures it all out.
-#--------------------------------------------------------------------
+#-----------------------------------------------------------------------
 
 TEA_CONFIG_CFLAGS
 
-#--------------------------------------------------------------------
+#-----------------------------------------------------------------------
 # Set the default compiler switches based on the --enable-symbols option.
-#--------------------------------------------------------------------
+#-----------------------------------------------------------------------
 
 TEA_ENABLE_SYMBOLS
 
-#--------------------------------------------------------------------
-# Everyone should be linking against the Tcl stub library.  If you
-# can't for some reason, remove this definition.  If you aren't using
-# stubs, you also need to modify the SHLIB_LD_LIBS setting below to
-# link against the non-stubbed Tcl library.  Add Tk too if necessary.
-#--------------------------------------------------------------------
-
-AC_DEFINE(USE_TCL_STUBS, 1, [Use Tcl stubs])
-
-#--------------------------------------------------------------------
-# This macro generates a line to use when building a library.  It
+#-----------------------------------------------------------------------
+# This macro generates a line to use when building a library. It
 # depends on values set by the TEA_ENABLE_SHARED, TEA_ENABLE_SYMBOLS,
 # and TEA_LOAD_TCLCONFIG macros above.
-#--------------------------------------------------------------------
+#-----------------------------------------------------------------------
 
 TEA_MAKE_LIB
 
-#--------------------------------------------------------------------
-# Determine the name of the tclsh and/or wish executables in the
-# Tcl and Tk build directories or the location they were installed
-# into. These paths are used to support running test cases only,
-# the Makefile should not be making use of these paths to generate
-# a pkgIndex.tcl file or anything else at extension build time.
-#--------------------------------------------------------------------
+#-----------------------------------------------------------------------
+# Find tclsh so that we can run pkg_mkIndex to create the pkgIndex.tcl
+# file during the install process. Don't run the TCLSH_PROG through
+# ${CYGPATH} because it's being used directly by make.
+# Require that we use a tclsh shell version 8.2 or later since earlier
+# versions have bugs in the pkg_mkIndex routine.
+# Add WISH as well if this is a Tk extension.
+#-----------------------------------------------------------------------
 
 TEA_PROG_TCLSH
+TEA_PROG_INSTALLED_TCLSH
+#TEA_PROG_WISH
 
-#--------------------------------------------------------------------
-# Setup a *Config.sh.in configuration file.
-#--------------------------------------------------------------------
-
-TEA_EXPORT_CONFIG([performance])
-
-#--------------------------------------------------------------------
-# Specify files to substitute AC variables in. You may alternatively
-# have a special pkgIndex.tcl.in or other files which require
-# substituting the AC variables in. Include these here.
-#--------------------------------------------------------------------
+#-----------------------------------------------------------------------
+# Finally, substitute all of the various values into the Makefile.
+# You may alternatively have a special pkgIndex.tcl.in or other files
+# which require substituting the AC variables in. Include these here.
+#-----------------------------------------------------------------------
 
 AC_CONFIG_FILES([Makefile pkgIndex.tcl])
-
-#--------------------------------------------------------------------
-# Finally, substitute all of the various values into the files
-# specified with AC_CONFIG_FILES.
-#--------------------------------------------------------------------
-
 AC_OUTPUT

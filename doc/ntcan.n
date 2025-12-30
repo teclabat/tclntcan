@@ -1,0 +1,900 @@
+'\"
+'\" Copyright (c) 2014 Markus Halla
+'\" Copyright (c) 2025 TERMA Technologies GmbH
+'\"
+'\" See the file "LICENSE" for information on usage and redistribution
+'\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+'\"
+.TH ntcan n 1.3 ntcan "Tcl NTCAN Extension"
+.so man.macros
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+ntcan \- Tcl bindings for ESD NTCAN API (CAN bus communication)
+.SH SYNOPSIS
+.nf
+\fBpackage require ntcan\fR ?\fB1.3\fR?
+
+\fBntcan::Scan\fR
+\fBntcan::Open\fR \fInet mode txqueuesize rxqueuesize txtimeout rxtimeout\fR
+\fBntcan::Close\fR \fIhandle\fR
+\fBntcan::SetBaudrate\fR \fIhandle baudrate\fR
+\fBntcan::GetBaudrate\fR \fIhandle\fR
+\fBntcan::SetBaudrateX\fR \fIhandle mode flags nominalBaudrate dataBaudrate\fR
+\fBntcan::GetBaudrateX\fR \fIhandle\fR
+\fBntcan::IdAdd\fR \fIhandle id\fR
+\fBntcan::IdRegionAdd\fR \fIhandle idStart idEnd\fR
+\fBntcan::IdDelete\fR \fIhandle id\fR
+\fBntcan::IdRegionDelete\fR \fIhandle idStart idEnd\fR
+\fBntcan::FlushRxFifo\fR \fIhandle\fR
+\fBntcan::GetRxMsgCount\fR \fIhandle\fR
+\fBntcan::GetTxMsgCount\fR \fIhandle\fR
+\fBntcan::GetRxTimeout\fR \fIhandle\fR
+\fBntcan::GetTxTimeout\fR \fIhandle\fR
+\fBntcan::SetRxTimeout\fR \fIhandle timeout\fR
+\fBntcan::SetTxTimeout\fR \fIhandle timeout\fR
+\fBntcan::AbortRx\fR \fIhandle\fR
+\fBntcan::AbortTx\fR \fIhandle\fR
+\fBntcan::GetBusStatistic\fR \fIhandle\fR
+\fBntcan::GetCtrlStatus\fR \fIhandle\fR
+\fBntcan::Read\fR \fIhandle maxMessages\fR
+\fBntcan::Write\fR \fIhandle id data\fR
+\fBntcan::ReadX\fR \fIhandle maxMessages\fR
+\fBntcan::WriteX\fR \fIhandle id mode data\fR
+\fBntcan::Status\fR \fIhandle\fR
+.fi
+.BE
+.SH DESCRIPTION
+.PP
+The \fBntcan\fR package provides Tcl bindings to the ESD NTCAN API, enabling
+Tcl applications to communicate with CAN (Controller Area Network) bus devices
+through ESD CAN hardware interfaces. The package wraps the native NTCAN C API
+and exposes it through a clean Tcl command interface in the \fBntcan::\fR namespace.
+.PP
+This extension supports both CAN 2.0 and CAN FD protocols, providing full
+access to CAN bus communication features including message filtering, baudrate
+configuration, and status monitoring.
+.SH "PREREQUISITES"
+.PP
+Before using this package, you must:
+.IP \(bu 3
+Install the ESD NTCAN driver for your operating system
+.IP \(bu 3
+Have compatible ESD CAN hardware connected to your system
+.IP \(bu 3
+Ensure the NTCAN library (libntcan/ntcan.dll) is available in your system's library path
+.PP
+For driver downloads and hardware support, visit:
+.br
+https://esd.eu/en/support/can-driver
+.SH "NETWORK MANAGEMENT COMMANDS"
+.TP
+\fBntcan::Scan\fR
+.
+Scans for all available CAN networks on the system and returns detailed
+information about each detected CAN interface, including board ID, version
+numbers (DLL, driver, firmware, hardware), status, and feature flags.
+This command is useful for discovering which CAN networks are available
+before opening a connection.
+.RS
+.PP
+Returns a multi-line string containing information about each detected network.
+.RE
+.TP
+\fBntcan::Open\fR \fInet mode txqueuesize rxqueuesize txtimeout rxtimeout\fR
+.
+Opens a CAN network for communication and returns a handle for subsequent operations.
+.RS
+.TP
+\fInet\fR
+.
+Logical network number (0-based). Use \fBntcan::Scan\fR to discover available networks.
+.TP
+\fImode\fR
+.
+Open mode flags. Common values:
+.RS
+.IP \(bu 3
+0 - Standard mode
+.IP \(bu 3
+0x00000001 - NTCAN_MODE_OVERLAPPED (asynchronous I/O on Windows)
+.IP \(bu 3
+0x00000002 - NTCAN_MODE_OBJECT (object mode)
+.IP \(bu 3
+Additional flags can be combined using bitwise OR
+.RE
+.TP
+\fItxqueuesize\fR
+.
+Size of the transmit queue (number of messages). Use 0 if transmit queue is not needed.
+.TP
+\fIrxqueuesize\fR
+.
+Size of the receive queue (number of messages). Recommended: 100 or more for reliable reception.
+.TP
+\fItxtimeout\fR
+.
+Transmit timeout in milliseconds. Use 0 for no timeout (infinite wait).
+.TP
+\fIrxtimeout\fR
+.
+Receive timeout in milliseconds. Use 0 for no timeout (infinite wait).
+Common values: 1000 (1 second), 100 (100 ms).
+.PP
+Returns an integer handle that must be used in all subsequent commands.
+The handle must be closed with \fBntcan::Close\fR when no longer needed.
+.PP
+Example:
+.CS
+set handle [ntcan::Open 0 0 1 100 0 1000]
+.CE
+.RE
+.TP
+\fBntcan::Close\fR \fIhandle\fR
+.
+Closes an open CAN handle and releases associated resources.
+All pending operations are aborted and filter settings are cleared.
+.RS
+.TP
+\fIhandle\fR
+.
+The CAN handle returned by \fBntcan::Open\fR.
+.RE
+.SH "BAUDRATE CONFIGURATION COMMANDS"
+.TP
+\fBntcan::SetBaudrate\fR \fIhandle baudrate\fR
+.
+Sets the CAN baudrate using standard CAN 2.0 baudrate indices.
+.RS
+.TP
+\fIhandle\fR
+.
+The CAN handle.
+.TP
+\fIbaudrate\fR
+.
+Baudrate index. Common values:
+.RS
+.IP \(bu 3
+0 - 1000 kbit/s (1 Mbit/s)
+.IP \(bu 3
+1 - 800 kbit/s
+.IP \(bu 3
+2 - 500 kbit/s
+.IP \(bu 3
+3 - 250 kbit/s
+.IP \(bu 3
+4 - 125 kbit/s
+.IP \(bu 3
+5 - 100 kbit/s
+.IP \(bu 3
+6 - 50 kbit/s
+.IP \(bu 3
+7 - 20 kbit/s
+.IP \(bu 3
+8 - 10 kbit/s
+.RE
+.PP
+Note: The baudrate must be set before adding IDs to the filter and
+before the interface can transmit or receive messages.
+.RE
+.TP
+\fBntcan::GetBaudrate\fR \fIhandle\fR
+.
+Returns the current CAN baudrate index.
+.RS
+.TP
+\fIhandle\fR
+.
+The CAN handle.
+.RE
+.TP
+\fBntcan::SetBaudrateX\fR \fIhandle mode flags nominalBaudrate dataBaudrate\fR
+.
+Sets extended baudrate parameters for CAN FD operation.
+This command is required for CAN FD communication.
+.RS
+.TP
+\fIhandle\fR
+.
+The CAN handle.
+.TP
+\fImode\fR
+.
+CAN FD mode flags. See NTCAN API documentation for available modes.
+.TP
+\fIflags\fR
+.
+Configuration flags. See NTCAN API documentation.
+.TP
+\fInominalBaudrate\fR
+.
+Baudrate index for the arbitration phase (nominal bitrate).
+.TP
+\fIdataBaudrate\fR
+.
+Baudrate index for the data phase (data bitrate, CAN FD only).
+.RE
+.TP
+\fBntcan::GetBaudrateX\fR \fIhandle\fR
+.
+Returns the current CAN FD baudrate configuration as a list.
+.RS
+.TP
+\fIhandle\fR
+.
+The CAN handle.
+.PP
+Returns a list containing four elements: {mode flags nominalBaudrate dataBaudrate}
+.RE
+.SH "ID FILTERING COMMANDS"
+.PP
+CAN message filtering determines which message IDs will be received by the
+application. By default, no messages are received until IDs are added to the filter.
+.TP
+\fBntcan::IdAdd\fR \fIhandle id\fR
+.
+Adds a single CAN identifier to the receive filter.
+.RS
+.TP
+\fIhandle\fR
+.
+The CAN handle.
+.TP
+\fIid\fR
+.
+CAN identifier to receive (11-bit standard: 0-0x7FF, 29-bit extended: 0-0x1FFFFFFF).
+For extended identifiers, set bit 29 (0x20000000).
+.PP
+Example:
+.CS
+# Add standard ID 0x100
+ntcan::IdAdd $handle 0x100
+
+# Add extended ID 0x12345678
+ntcan::IdAdd $handle [expr {0x12345678 | 0x20000000}]
+.CE
+.RE
+.TP
+\fBntcan::IdRegionAdd\fR \fIhandle idStart idEnd\fR
+.
+Adds a range of consecutive CAN identifiers to the receive filter.
+This is more efficient than adding individual IDs when receiving
+multiple consecutive identifiers.
+.RS
+.TP
+\fIhandle\fR
+.
+The CAN handle.
+.TP
+\fIidStart\fR
+.
+First CAN identifier in the range (inclusive).
+.TP
+\fIidEnd\fR
+.
+Last CAN identifier in the range (inclusive).
+.PP
+Example:
+.CS
+# Receive all IDs from 0x100 to 0x1FF
+ntcan::IdRegionAdd $handle 0x100 0x1FF
+.CE
+.RE
+.TP
+\fBntcan::IdDelete\fR \fIhandle id\fR
+.
+Removes a single CAN identifier from the receive filter.
+.RS
+.TP
+\fIhandle\fR
+.
+The CAN handle.
+.TP
+\fIid\fR
+.
+CAN identifier to stop receiving.
+.RE
+.TP
+\fBntcan::IdRegionDelete\fR \fIhandle idStart idEnd\fR
+.
+Removes a range of CAN identifiers from the receive filter.
+.RS
+.TP
+\fIhandle\fR
+.
+The CAN handle.
+.TP
+\fIidStart\fR
+.
+First CAN identifier in the range.
+.TP
+\fIidEnd\fR
+.
+Last CAN identifier in the range.
+.RE
+.SH "MESSAGE TRANSMISSION AND RECEPTION COMMANDS"
+.TP
+\fBntcan::Write\fR \fIhandle id data\fR
+.
+Transmits a CAN 2.0 message on the bus.
+.RS
+.TP
+\fIhandle\fR
+.
+The CAN handle.
+.TP
+\fIid\fR
+.
+CAN identifier for the message (11-bit or 29-bit).
+.TP
+\fIdata\fR
+.
+Binary data to transmit (0-8 bytes for CAN 2.0).
+Use \fBbinary format\fR to create binary data.
+.PP
+Example:
+.CS
+# Send message with ID 0x100 containing bytes 0x01 0x02 0x03 0x04
+set data [binary format c* {1 2 3 4}]
+ntcan::Write $handle 0x100 $data
+
+# Send message with ID 0x200 containing a 32-bit integer
+set value 12345678
+set data [binary format i $value]
+ntcan::Write $handle 0x200 $data
+.CE
+.RE
+.TP
+\fBntcan::Read\fR \fIhandle maxMessages\fR
+.
+Reads CAN 2.0 messages from the receive queue.
+.RS
+.TP
+\fIhandle\fR
+.
+The CAN handle.
+.TP
+\fImaxMessages\fR
+.
+Maximum number of messages to read. Typically 10-100.
+.PP
+Returns a list of alternating ID and data pairs:
+{id1 data1 id2 data2 ...}
+.PP
+If no messages are available within the configured timeout, an empty list is returned.
+.PP
+Example:
+.CS
+# Read up to 10 messages
+set result [ntcan::Read $handle 10]
+
+# Process received messages
+foreach {id data} $result {
+    puts "Received ID: [format 0x%X $id]"
+    binary scan $data H* hex
+    puts "Data (hex): $hex"
+    puts "Data length: [string length $data] bytes"
+}
+.CE
+.RE
+.TP
+\fBntcan::WriteX\fR \fIhandle id mode data\fR
+.
+Transmits a CAN FD message with extended format.
+.RS
+.TP
+\fIhandle\fR
+.
+The CAN handle.
+.TP
+\fIid\fR
+.
+CAN identifier for the message.
+.TP
+\fImode\fR
+.
+Message mode flags. Can include:
+.RS
+.IP \(bu 3
+Flags for CAN FD specific features
+.IP \(bu 3
+Bit rate switching (BRS)
+.IP \(bu 3
+Error state indicator (ESI)
+.RE
+.TP
+\fIdata\fR
+.
+Binary data to transmit (0-64 bytes for CAN FD).
+.PP
+Example:
+.CS
+# Send CAN FD message with 32 bytes of data
+set data [binary format c* [lrepeat 32 0xFF]]
+ntcan::WriteX $handle 0x100 0 $data
+.CE
+.RE
+.TP
+\fBntcan::ReadX\fR \fIhandle maxMessages\fR
+.
+Reads CAN FD messages from the receive queue.
+.RS
+.TP
+\fIhandle\fR
+.
+The CAN handle.
+.TP
+\fImaxMessages\fR
+.
+Maximum number of messages to read.
+.PP
+Returns a list of ID, mode, and data triplets:
+{id1 mode1 data1 id2 mode2 data2 ...}
+.PP
+Example:
+.CS
+# Read CAN FD messages
+set result [ntcan::ReadX $handle 10]
+
+# Process received messages
+foreach {id mode data} $result {
+    puts "Received ID: [format 0x%X $id], Mode: [format 0x%X $mode]"
+    binary scan $data H* hex
+    puts "Data: $hex ([string length $data] bytes)"
+}
+.CE
+.RE
+.SH "STATUS AND MONITORING COMMANDS"
+.TP
+\fBntcan::Status\fR \fIhandle\fR
+.
+Returns detailed status information about the CAN interface.
+.RS
+.TP
+\fIhandle\fR
+.
+The CAN handle.
+.PP
+Returns a multi-line string containing:
+.IP \(bu 3
+Board ID (hardware identifier)
+.IP \(bu 3
+DLL version (major.minor.patch)
+.IP \(bu 3
+Driver version
+.IP \(bu 3
+Firmware version
+.IP \(bu 3
+Hardware version
+.IP \(bu 3
+Board status (hexadecimal flags)
+.IP \(bu 3
+Feature flags (capabilities)
+.RE
+.TP
+\fBntcan::GetBusStatistic\fR \fIhandle\fR
+.
+Returns bus statistics including error counters and message counts.
+.RS
+.TP
+\fIhandle\fR
+.
+The CAN handle.
+.RE
+.TP
+\fBntcan::GetCtrlStatus\fR \fIhandle\fR
+.
+Returns the current controller status including error states.
+.RS
+.TP
+\fIhandle\fR
+.
+The CAN handle.
+.PP
+The return value contains status flags indicating:
+.IP \(bu 3
+Bus-off state
+.IP \(bu 3
+Error warning level
+.IP \(bu 3
+Error passive state
+.RE
+.SH "QUEUE MANAGEMENT COMMANDS"
+.TP
+\fBntcan::FlushRxFifo\fR \fIhandle\fR
+.
+Flushes (clears) all messages from the receive FIFO queue.
+.RS
+.TP
+\fIhandle\fR
+.
+The CAN handle.
+.PP
+This is useful when you want to discard old messages and only process
+new messages after a certain point in your application.
+.RE
+.TP
+\fBntcan::GetRxMsgCount\fR \fIhandle\fR
+.
+Returns the number of messages currently waiting in the receive queue.
+.RS
+.TP
+\fIhandle\fR
+.
+The CAN handle.
+.PP
+Returns an integer count of messages available for reading.
+.RE
+.TP
+\fBntcan::GetTxMsgCount\fR \fIhandle\fR
+.
+Returns the number of messages currently waiting in the transmit queue.
+.RS
+.TP
+\fIhandle\fR
+.
+The CAN handle.
+.RE
+.SH "TIMEOUT CONFIGURATION COMMANDS"
+.TP
+\fBntcan::SetRxTimeout\fR \fIhandle timeout\fR
+.
+Sets the timeout for receive operations.
+.RS
+.TP
+\fIhandle\fR
+.
+The CAN handle.
+.TP
+\fItimeout\fR
+.
+Timeout value in milliseconds. Use 0 for infinite timeout (blocking).
+.RE
+.TP
+\fBntcan::GetRxTimeout\fR \fIhandle\fR
+.
+Returns the current receive timeout in milliseconds.
+.RS
+.TP
+\fIhandle\fR
+.
+The CAN handle.
+.RE
+.TP
+\fBntcan::SetTxTimeout\fR \fIhandle timeout\fR
+.
+Sets the timeout for transmit operations.
+.RS
+.TP
+\fIhandle\fR
+.
+The CAN handle.
+.TP
+\fItimeout\fR
+.
+Timeout value in milliseconds.
+.RE
+.TP
+\fBntcan::GetTxTimeout\fR \fIhandle\fR
+.
+Returns the current transmit timeout in milliseconds.
+.RS
+.TP
+\fIhandle\fR
+.
+The CAN handle.
+.RE
+.SH "ABORT OPERATIONS COMMANDS"
+.TP
+\fBntcan::AbortRx\fR \fIhandle\fR
+.
+Aborts any pending receive operations on the specified handle.
+.RS
+.TP
+\fIhandle\fR
+.
+The CAN handle.
+.PP
+This is useful when using overlapped (asynchronous) I/O to cancel
+pending read operations.
+.RE
+.TP
+\fBntcan::AbortTx\fR \fIhandle\fR
+.
+Aborts any pending transmit operations on the specified handle.
+.RS
+.TP
+\fIhandle\fR
+.
+The CAN handle.
+.RE
+.SH "EXAMPLES"
+.SS "EXAMPLE 1: BASIC CAN COMMUNICATION"
+.PP
+This example demonstrates opening a CAN interface, configuring it,
+and sending/receiving basic CAN messages.
+.PP
+.CS
+package require ntcan
+
+# Scan for available CAN networks
+puts "Available CAN networks:"
+puts [ntcan::Scan]
+
+# Open CAN network 0 with:
+# - mode: 0 (standard)
+# - TX queue: 1 message
+# - RX queue: 100 messages
+# - TX timeout: 0 ms (no timeout)
+# - RX timeout: 1000 ms (1 second)
+set handle [ntcan::Open 0 0 1 100 0 1000]
+puts "Opened CAN handle: $handle"
+
+# Set baudrate to 500 kbit/s
+ntcan::SetBaudrate $handle 2
+puts "Baudrate set to 500 kbit/s"
+
+# Add CAN ID 0x100 to receive filter
+ntcan::IdAdd $handle 0x100
+puts "Added ID 0x100 to receive filter"
+
+# Send a CAN message
+set data [binary format c* {0x11 0x22 0x33 0x44 0x55 0x66 0x77 0x88}]
+ntcan::Write $handle 0x200 $data
+puts "Sent message with ID 0x200"
+
+# Read messages (wait up to 1 second for messages)
+set messages [ntcan::Read $handle 10]
+if {[llength $messages] > 0} {
+    foreach {id data} $messages {
+        binary scan $data H* hexdata
+        puts [format "Received - ID: 0x%03X, Data: %s" $id $hexdata]
+    }
+} else {
+    puts "No messages received within timeout"
+}
+
+# Close the handle
+ntcan::Close $handle
+puts "Closed CAN handle"
+.CE
+.SS "EXAMPLE 2: MONITORING MULTIPLE IDS"
+.PP
+This example shows how to monitor a range of CAN IDs and process
+incoming messages continuously.
+.PP
+.CS
+package require ntcan
+
+# Open CAN interface
+set handle [ntcan::Open 0 0 1 500 0 100]
+ntcan::SetBaudrate $handle 2
+
+# Add a range of IDs to the receive filter (0x100 - 0x1FF)
+ntcan::IdRegionAdd $handle 0x100 0x1FF
+puts "Monitoring CAN IDs from 0x100 to 0x1FF"
+
+# Display current status
+puts "\\nInterface Status:"
+puts [ntcan::Status $handle]
+
+# Monitor loop (run for 10 seconds)
+set endtime [expr {[clock seconds] + 10}]
+set msgcount 0
+
+while {[clock seconds] < $endtime} {
+    set messages [ntcan::ReadX $handle 50]
+
+    foreach {id mode data} $messages {
+        incr msgcount
+        binary scan $data H* hexdata
+        set len [string length $data]
+        puts [format "%s - ID: 0x%03X, Mode: 0x%02X, Len: %2d, Data: %s" \\
+              [clock format [clock seconds] -format %H:%M:%S] \\
+              $id $mode $len $hexdata]
+    }
+
+    # Check queue depth
+    set queuedepth [ntcan::GetRxMsgCount $handle]
+    if {$queuedepth > 100} {
+        puts "Warning: RX queue depth high: $queuedepth messages"
+    }
+}
+
+puts "\\nReceived $msgcount messages in 10 seconds"
+ntcan::Close $handle
+.CE
+.SS "EXAMPLE 3: CAN FD COMMUNICATION"
+.PP
+This example demonstrates CAN FD operation with extended data lengths.
+.PP
+.CS
+package require ntcan
+
+# Open CAN interface
+set handle [ntcan::Open 0 0 10 100 0 1000]
+
+# Configure CAN FD baudrate
+# Mode: CAN FD mode
+# Flags: 0
+# Nominal: 500 kbit/s (index 2)
+# Data: 2 Mbit/s (index 0)
+ntcan::SetBaudrateX $handle 0x01 0 2 0
+puts "CAN FD configured"
+
+# Get and display baudrate configuration
+set baudcfg [ntcan::GetBaudrateX $handle]
+puts "Baudrate config: $baudcfg"
+
+# Add ID for reception
+ntcan::IdAdd $handle 0x300
+
+# Send a CAN FD message with 32 bytes of data
+set data [binary format c* [concat \\
+    {0x01 0x02 0x03 0x04 0x05 0x06 0x07 0x08} \\
+    {0x11 0x12 0x13 0x14 0x15 0x16 0x17 0x18} \\
+    {0x21 0x22 0x23 0x24 0x25 0x26 0x27 0x28} \\
+    {0x31 0x32 0x33 0x34 0x35 0x36 0x37 0x38}]]
+
+# Mode flags for CAN FD (consult NTCAN documentation)
+set mode 0x01  ;# CAN FD frame
+
+ntcan::WriteX $handle 0x300 $mode $data
+puts "Sent CAN FD message with 32 bytes"
+
+# Read CAN FD messages
+set messages [ntcan::ReadX $handle 10]
+foreach {id rxmode data} $messages {
+    binary scan $data H* hexdata
+    puts [format "RX - ID: 0x%03X, Mode: 0x%02X, %d bytes: %s" \\
+          $id $rxmode [string length $data] $hexdata]
+}
+
+ntcan::Close $handle
+.CE
+.SS "EXAMPLE 4: ERROR HANDLING AND DIAGNOSTICS"
+.PP
+This example demonstrates proper error handling and diagnostic output.
+.PP
+.CS
+package require ntcan
+
+proc open_can_safe {net} {
+    if {[catch {
+        set handle [ntcan::Open $net 0 1 100 0 1000]
+        return $handle
+    } err]} {
+        puts "Error opening CAN network $net: $err"
+        return -1
+    }
+}
+
+proc monitor_can_health {handle} {
+    # Get controller status
+    if {[catch {
+        set status [ntcan::GetCtrlStatus $handle]
+        puts "Controller Status: $status"
+    } err]} {
+        puts "Error getting controller status: $err"
+    }
+
+    # Get bus statistics
+    if {[catch {
+        set stats [ntcan::GetBusStatistic $handle]
+        puts "Bus Statistics: $stats"
+    } err]} {
+        puts "Error getting bus statistics: $err"
+    }
+
+    # Get queue depths
+    set rxcount [ntcan::GetRxMsgCount $handle]
+    set txcount [ntcan::GetTxMsgCount $handle]
+    puts "Queue depths - RX: $rxcount, TX: $txcount"
+}
+
+# Main program with error handling
+set handle [open_can_safe 0]
+if {$handle == -1} {
+    puts "Failed to open CAN interface"
+    exit 1
+}
+
+# Configure interface
+if {[catch {
+    ntcan::SetBaudrate $handle 2
+    ntcan::IdRegionAdd $handle 0 0x7FF  ;# Accept all standard IDs
+} err]} {
+    puts "Configuration error: $err"
+    ntcan::Close $handle
+    exit 1
+}
+
+# Monitor health every 5 seconds
+for {set i 0} {$i < 3} {incr i} {
+    puts "\\n=== Health Check [expr {$i + 1}] ==="
+    monitor_can_health $handle
+    after 5000  ;# Wait 5 seconds
+}
+
+# Cleanup
+ntcan::Close $handle
+puts "\\nCAN interface closed successfully"
+.CE
+.SH "ERROR HANDLING"
+.PP
+All commands that can fail will throw a Tcl error with a descriptive message.
+The error message includes:
+.IP \(bu 3
+The NTCAN function that failed
+.IP \(bu 3
+The numeric error code
+.IP \(bu 3
+A human-readable description of the error
+.PP
+Use Tcl's \fBcatch\fR command to handle errors gracefully:
+.PP
+.CS
+if {[catch {
+    set handle [ntcan::Open 0 0 1 100 0 1000]
+} err]} {
+    puts "Error: $err"
+    # Handle error appropriately
+}
+.CE
+.PP
+Common errors include:
+.IP \(bu 3
+NTCAN_HANDLE_INVALID - Invalid handle parameter
+.IP \(bu 3
+NTCAN_NET_NOT_FOUND - Specified network number not found
+.IP \(bu 3
+NTCAN_INSUFFICIENT_RESOURCES - Out of memory or handles
+.IP \(bu 3
+NTCAN_CONTR_BUSY - Controller is busy
+.IP \(bu 3
+NTCAN_RX_TIMEOUT - No message received within timeout
+.IP \(bu 3
+NTCAN_TX_TIMEOUT - Message could not be sent within timeout
+.SH "PLATFORM SUPPORT"
+.PP
+The \fBntcan\fR package is supported on the following platforms:
+.IP \(bu 3
+Windows 10/11 (32-bit and 64-bit)
+.IP \(bu 3
+Linux (32-bit and 64-bit)
+.IP \(bu 3
+QNX 6/7
+.IP \(bu 3
+VxWorks 5/6/7
+.IP \(bu 3
+RTX64
+.IP \(bu 3
+Other real-time operating systems supported by ESD NTCAN drivers
+.PP
+The required ESD NTCAN driver must be installed for your specific platform.
+.SH "HARDWARE SUPPORT"
+.PP
+The \fBntcan\fR package works with all ESD CAN hardware that is supported
+by the NTCAN driver, including:
+.IP \(bu 3
+C402 - Latest esdACC-based CAN boards
+.IP \(bu 3
+USB3 - Latest USB CAN interfaces with CAN FD support
+.IP \(bu 3
+U400 - High-end USB interfaces
+.IP \(bu 3
+C200/C331/C405 - PCI/PCIe board families
+.PP
+For a complete list of supported hardware and compatibility information,
+consult the ESD documentation at https://esd.eu
+.SH "SEE ALSO"
+.PP
+ESD NTCAN API Manual (CAN-API_Manual.pdf), binary(n), catch(n), clock(n)
+.SH KEYWORDS
+CAN, CAN bus, CAN FD, NTCAN, ESD, hardware interface, fieldbus, automotive
+.SH COPYRIGHT
+.nf
+Copyright (c) 2014 Markus Halla
+Copyright (c) 2025 TERMA Technologies GmbH
+.fi
